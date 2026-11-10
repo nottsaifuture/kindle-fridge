@@ -197,3 +197,46 @@ def demo_events(tz, now):
         Event(day=tomorrow, title="睇牙醫", start=at(tomorrow, 10, 0)),
         Event(day=tomorrow, title="游水班", start=at(tomorrow, 17, 30)),
     ]
+
+
+# ------------------------------------------------------------ school lunch
+
+
+@dataclass
+class Lunch:
+    day: date
+    main: str
+    dessert: str
+
+
+def load_lunches(path, today):
+    """School lunches for today and tomorrow from the Fire dashboard's menus.json.
+
+    The file holds {"menus": [{"weekOf": "<Monday>", "days": [5 x {main, sides,
+    dessert}]}]}. Days with no menu (weekends, missing weeks) are left out, and
+    a missing or unreadable file simply gives no lunches.
+    """
+    if not path:
+        return []
+    try:
+        with open(path, encoding="utf-8") as f:
+            menus = json.load(f)["menus"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
+
+    by_day = {}
+    for menu in menus:  # later entries for the same week win
+        try:
+            monday = date.fromisoformat(menu["weekOf"])
+            for i, item in enumerate(menu["days"][:5]):
+                by_day[monday + timedelta(days=i)] = item
+        except (KeyError, TypeError, ValueError):
+            continue
+
+    lunches = []
+    for day in (today, today + timedelta(days=1)):
+        item = by_day.get(day)
+        if isinstance(item, dict) and str(item.get("main", "")).strip():
+            lunches.append(Lunch(day, str(item["main"]).strip(),
+                                 str(item.get("dessert", "")).strip()))
+    return lunches

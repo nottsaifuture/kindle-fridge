@@ -90,6 +90,19 @@ def fit(text, f, max_width):
     return text + "…"
 
 
+def wrap(text, f, max_width, max_lines):
+    """Split text into at most max_lines lines (by word), ellipsis on the last."""
+    words, lines = text.split(), []
+    while words and len(lines) < max_lines:
+        line = words.pop(0)
+        while words and text_width(line + " " + words[0], f) <= max_width:
+            line += " " + words.pop(0)
+        lines.append(line)
+    if words:
+        lines[-1] = fit(lines[-1] + " " + " ".join(words), f, max_width)
+    return [fit(line, f, max_width) for line in lines]
+
+
 def day_label(day, today):
     if day == today:
         return "今日"
@@ -105,7 +118,7 @@ def deg(value):
 # ------------------------------------------------------------------ layout
 
 
-def render(cfg, weather, events, calendar_note, now):
+def render(cfg, weather, events, calendar_note, now, lunches=()):
     img = Image.new("L", (WIDTH, HEIGHT), WHITE)
     d = ImageDraw.Draw(img)
     today = now.date()
@@ -113,20 +126,22 @@ def render(cfg, weather, events, calendar_note, now):
     left_end = SPLIT - 12  # right edge of the weather column
 
     # Header across the top: date, weekday, place.
+    # Placed by baseline ("ls" anchor) so Noto and the Mac preview fonts line up.
     date_text = f"{now.month}月{now.day}日"
-    d.text((MARGIN, 8), date_text, font=font(44, "bold"), fill=BLACK)
-    date_w = text_width(date_text, font(44, "bold"))
-    d.text((MARGIN + date_w + 14, 24), WEEKDAYS[now.weekday()], font=font(28), fill=BLACK)
+    d.text((MARGIN, 68), date_text, font=font(58, "bold"), fill=BLACK, anchor="ls")
+    date_w = text_width(date_text, font(58, "bold"))
+    d.text((MARGIN + date_w + 16, 66), WEEKDAYS[now.weekday()], font=font(34), fill=BLACK, anchor="ls")
     place = cfg["location_name"]
-    d.text((right - text_width(place, font(22)), 30), place, font=font(22), fill=GREY)
-    d.line([(MARGIN, 74), (right, 74)], fill=BLACK, width=2)
-    d.line([(SPLIT, 86), (SPLIT, HEIGHT - 20)], fill=GREY, width=1)
+    d.text((right - text_width(place, font(22)), 64), place, font=font(22), fill=GREY, anchor="ls")
+    d.line([(MARGIN, 82), (right, 82)], fill=BLACK, width=2)
+    d.line([(SPLIT, 92), (SPLIT, HEIGHT - 20)], fill=GREY, width=1)
 
-    # --- Left column: weather.
+    # --- Left column: weather. Description sits under the icon so the
+    # temperature can be big.
     today_forecast = weather.days[0]
-    draw_icon(d, weather.code, MARGIN + 58, 148, 116, night=not weather.is_day)
-    d.text((150, 76), deg(weather.temp), font=font(84, "bold"), fill=BLACK)
-    d.text((156, 184), describe(weather.code), font=font(28, "bold"), fill=BLACK)
+    draw_icon(d, weather.code, MARGIN + 56, 140, 104, night=not weather.is_day)
+    _centred(d, MARGIN + 56, 186, describe(weather.code), font(26, "bold"), BLACK)
+    d.text((158, 204), deg(weather.temp), font=font(128, "bold"), fill=BLACK, anchor="ls")
 
     details = [
         (f"最高 {deg(today_forecast.t_max)}  最低 {deg(today_forecast.t_min)}",
@@ -162,9 +177,16 @@ def render(cfg, weather, events, calendar_note, now):
         _centred(d, x + col_w / 2, 532, f"{deg(day.t_max)} / {deg(day.t_min)}", font(18), BLACK)
         _centred(d, x + col_w / 2, 556, f"雨 {day.rain}%", font(15), GREY)
 
-    # --- Right column: calendar.
+    # --- Right column: calendar, then school lunch (only if there is a menu).
+    col_left = SPLIT + 14
+    lunch_h = _lunch_height(lunches, right - col_left)
+    cal_bottom = 556 - lunch_h - (14 if lunches else 0)
     _draw_calendar(d, events, calendar_note, today,
-                   left=SPLIT + 14, right=right, top=86, bottom=556)
+                   left=col_left, right=right, top=94, bottom=cal_bottom)
+    if lunches:
+        top = cal_bottom + 6
+        d.line([(col_left, top), (right, top)], fill=GREY, width=1)
+        _draw_lunches(d, lunches, today, col_left, right, top + 8)
 
     # Footer under the calendar. The strip right of MARGIN is left blank:
     # the Kindle prints its battery level there, sideways.
@@ -186,8 +208,39 @@ def _centred(d, cx, y, text, f, fill):
     d.text((cx - text_width(text, f) / 2, y), text, font=f, fill=fill)
 
 
+LUNCH_HEAD, LUNCH_MAIN, LUNCH_DESSERT = 28, 24, 22  # line heights
+
+
+def _lunch_lines(lunch, width):
+    main = wrap(lunch.main, font(19), width, 2)
+    dessert = [fit("甜品：" + lunch.dessert, font(17), width)] if lunch.dessert else []
+    return main, dessert
+
+
+def _lunch_height(lunches, width):
+    total = 0
+    for lunch in lunches:
+        main, dessert = _lunch_lines(lunch, width - 6)
+        total += LUNCH_HEAD + LUNCH_MAIN * len(main) + LUNCH_DESSERT * len(dessert) + 6
+    return total
+
+
+def _draw_lunches(d, lunches, today, left, right, y):
+    for lunch in lunches:
+        main, dessert = _lunch_lines(lunch, right - left - 6)
+        d.text((left, y), f"{day_label(lunch.day, today)}午餐", font=font(20, "bold"), fill=BLACK)
+        y += LUNCH_HEAD
+        for line in main:
+            d.text((left + 6, y), line, font=font(19), fill=BLACK)
+            y += LUNCH_MAIN
+        for line in dessert:
+            d.text((left + 6, y), line, font=font(17), fill=GREY)
+            y += LUNCH_DESSERT
+        y += 6
+
+
 def _draw_calendar(d, events, note, today, left, right, top, bottom):
-    row_h = 32
+    row_h = 30
     title_font, time_font, heading_font = font(22), font(20, "bold"), font(22, "bold")
     y = top
 
@@ -235,6 +288,8 @@ def main():
     parser.add_argument("--out", default=HERE.parent / "out" / "dashboard.png")
     parser.add_argument("--demo-calendar", action="store_true",
                         help="show sample events instead of reading ICAL_URLS")
+    parser.add_argument("--menus", default=os.environ.get("MENUS_JSON", ""),
+                        help="school lunch menus.json (from the Fire dashboard); optional")
     args = parser.parse_args()
 
     cfg = json.loads(Path(args.config).read_text(encoding="utf-8"))
@@ -254,11 +309,12 @@ def main():
         elif failed == len(urls):
             note = "日曆暫時讀取唔到"
 
-    image = render(cfg, weather, events, note, now)
+    lunches = data.load_lunches(args.menus, now.date())
+    image = render(cfg, weather, events, note, now, lunches)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     image.save(out, optimize=True)
-    print(f"Saved {out} ({len(events)} events)")
+    print(f"Saved {out} ({len(events)} events, {len(lunches)} lunches)")
 
 
 if __name__ == "__main__":

@@ -25,8 +25,24 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
+    env:
+      HAS_MENU_KEY: ${{ secrets.MENU_DEPLOY_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
+
+      # School lunch menu from the private Fire dashboard repo, read with a
+      # read-only deploy key. Skipped (no lunch shown) if the key isn't set
+      # or the checkout fails.
+      - name: Get school lunch menu
+        if: env.HAS_MENU_KEY == 'true'
+        continue-on-error: true
+        uses: actions/checkout@v4
+        with:
+          repository: nottsaifuture/fire-home-dashboard
+          ssh-key: ${{ secrets.MENU_DEPLOY_KEY }}
+          path: fire-menu
+          sparse-checkout: dist/menus.json
+          sparse-checkout-cone-mode: false
 
       - uses: actions/setup-python@v5
         with:
@@ -43,6 +59,7 @@ jobs:
         env:
           ICAL_URLS: ${{ secrets.ICAL_URLS }}
           DASH_SECRET: ${{ secrets.DASH_SECRET }}
+          MENUS_JSON: fire-menu/dist/menus.json
         run: |
           if [ -z "$DASH_SECRET" ]; then
             echo "Add a DASH_SECRET repository secret first (see README)." >&2
