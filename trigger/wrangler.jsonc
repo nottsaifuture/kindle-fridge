@@ -1,0 +1,13 @@
+{
+  // Timer that triggers the GitHub render (see worker.js).
+  "name": "kindle-fridge-trigger",
+  "main": "worker.js",
+  "compatibility_date": "2026-10-02",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": {
+    // Twice an hour (UTC). The :50 run finishes well before the Kindle wakes
+    // at five past the hour; the :20 run keeps the image fresh in between.
+    "crons": ["20,50 * * * *"]
+  }
+}

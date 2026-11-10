@@ -6,3 +6,4 @@ downloads/
 
 # Real image address, kept off GitHub
 *.private
+.wrangler/
