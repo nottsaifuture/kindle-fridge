@@ -1,0 +1,57 @@
+name: Render Kindle dashboard
+
+on:
+  schedule:
+    - cron: "15,45 * * * *" # every 30 minutes (GitHub may start it a few minutes late)
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: renderer/requirements.txt
+
+      - name: Install Chinese font
+        run: sudo apt-get update -q && sudo apt-get install -y -q fonts-noto-cjk
+
+      - run: pip install -r renderer/requirements.txt
+
+      - name: Render image
+        env:
+          ICAL_URLS: ${{ secrets.ICAL_URLS }}
+          DASH_SECRET: ${{ secrets.DASH_SECRET }}
+        run: |
+          if [ -z "$DASH_SECRET" ]; then
+            echo "Add a DASH_SECRET repository secret first (see README)." >&2
+            exit 1
+          fi
+          mkdir -p site
+          python renderer/render.py --out "site/$DASH_SECRET.png"
+          # Nothing else is published, so the image can only be found by
+          # someone who already knows its secret file name.
+          echo '<!doctype html><title>Kindle</title>' > site/index.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - uses: actions/deploy-pages@v4
