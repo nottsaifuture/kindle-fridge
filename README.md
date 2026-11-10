@@ -88,7 +88,9 @@ ICAL_URLS="你的iCal連結" .venv/bin/python renderer/render.py
 
 **私隱：**張圖只可以用呢條秘密網址打開，網站冇其他頁面會連去佢，原理同 Google Calendar 嘅私人 iCal 連結一樣。唔好將條網址俾人。
 
-> GitHub 如果 60 日冇人改過個 repo，會自動暫停排程，暫停之前會 email 你。收到 email 嘅話，去 Actions 撳返 **Enable workflow** 就得。Kindle 屏幕底部嘅「更新於」時間太舊，都可能係呢個原因。
+> GitHub 如果 60 日冇人改過個 repo，會自動暫停排程。workflow 最後一步「Keep the schedule alive」每次都會重新啟用自己，所以正常唔會暫停。萬一收到 GitHub email 話暫停咗，去 Actions 撳返 **Enable workflow** 就得。
+>
+> GitHub 排程唔準時，有時會遲，甚至跳過。所以 workflow 每 10 分鐘試一次。Kindle 屏幕上面嘅「更新於」係 **GitHub 畫圖嘅時間**，唔係 Kindle 下載嘅時間。
 
 ## 步驟 4：Kindle 越獄同安裝
 
