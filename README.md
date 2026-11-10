@@ -130,6 +130,7 @@ ICAL_URLS="你的iCal連結" .venv/bin/python renderer/render.py
 - **充電**：直接插線就得，唔使停程式。
 - **想用返 Kindle 睇書**：㩒住底部電源掣大約 20 秒，Kindle 重新開機就會變返正常。之後喺 KUAL 撳 Start 就再開始。
 - **打橫擺**：預設 Kindle 啲掣喺**右邊**。想掣喺左邊，就將 `renderer/config.json` 嘅 `kindle_buttons` 改做 `"left"`，再將 `env.sh` 嘅 `BATTERY_ROW` 改做 `0`。
+- **落雨圖示**：降雨機會 30% 或以上顯示小雨（雨點），60% 或以上（或者預測有雨量）顯示落雨。想改就改 `renderer/config.json` 嘅 `drizzle_icon_percent`、`rain_icon_percent`。
 - **電量**：每次更新都會喺右邊窄位**打側**顯示 `Battery 65%`（Kindle 4 嘅 eips 唔可以轉字方向）；低過 20% 會顯示 `LOW BATTERY`。
 - **電量字出錯位置**：改 `env.sh` 嘅 `BATTERY_COL`、`BATTERY_ROW`。
 - **改更新時間**：改 `env.sh` 嘅 `REFRESH_SCHEDULE`。

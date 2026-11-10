@@ -55,16 +55,38 @@ class Weather:
     days: list
 
 
+RAIN_CODE, DRIZZLE_CODE = 61, 51  # WMO "slight rain", "light drizzle"
+
+
+def _with_rain(code, chance, mm, min_mm, cfg):
+    """Show rain in the icon when rain is likely, even if the forecast code is
+    only cloudy (Open-Meteo's code describes the sky, so a cloudy hour with a
+    60% chance of rain would otherwise show plain clouds).
+
+    - rain icon: chance >= "rain_icon_percent" (default 60) or at least
+      min_mm of rain forecast
+    - light-rain (drizzle) icon: chance >= "drizzle_icon_percent" (default 30)
+    """
+    if code >= 51:  # already drizzle, rain, snow, showers or thunder
+        return code
+    chance, mm = chance or 0, mm or 0
+    if chance >= cfg.get("rain_icon_percent", 60) or mm >= min_mm:
+        return RAIN_CODE
+    if chance >= cfg.get("drizzle_icon_percent", 30):
+        return DRIZZLE_CODE
+    return code
+
+
 def fetch_weather(cfg, now):
     params = {
         "latitude": cfg["latitude"],
         "longitude": cfg["longitude"],
         "timezone": cfg["timezone"],
         "current": "temperature_2m,apparent_temperature,relative_humidity_2m,"
-        "weather_code,wind_speed_10m,is_day",
-        "hourly": "temperature_2m,weather_code,precipitation_probability,is_day",
+        "weather_code,wind_speed_10m,is_day,precipitation",
+        "hourly": "temperature_2m,weather_code,precipitation_probability,precipitation,is_day",
         "daily": "weather_code,temperature_2m_max,temperature_2m_min,"
-        "precipitation_probability_max,sunrise,sunset",
+        "precipitation_probability_max,precipitation_sum,sunrise,sunset",
         "forecast_days": 4,
         "wind_speed_unit": "kmh",
     }
@@ -88,7 +110,9 @@ def fetch_weather(cfg, now):
             Hour(
                 time=t,
                 temp=hourly["temperature_2m"][i],
-                code=hourly["weather_code"][i],
+                code=_with_rain(hourly["weather_code"][i],
+                                hourly["precipitation_probability"][i],
+                                hourly["precipitation"][i], 0.2, cfg),
                 rain=hourly["precipitation_probability"][i] or 0,
                 is_day=bool(hourly["is_day"][i]),
             )
@@ -99,7 +123,10 @@ def fetch_weather(cfg, now):
     days = [
         Day(
             date=date.fromisoformat(daily["time"][i]),
-            code=daily["weather_code"][i],
+            # A whole day needs more than a passing drop (1 mm) to count as rainy.
+            code=_with_rain(daily["weather_code"][i],
+                            daily["precipitation_probability_max"][i],
+                            daily["precipitation_sum"][i], 1.0, cfg),
             t_max=daily["temperature_2m_max"][i],
             t_min=daily["temperature_2m_min"][i],
             rain=daily["precipitation_probability_max"][i] or 0,
@@ -114,7 +141,8 @@ def fetch_weather(cfg, now):
         feels=current["apparent_temperature"],
         humidity=current["relative_humidity_2m"],
         wind=current["wind_speed_10m"],
-        code=current["weather_code"],
+        # Raining right now (any measurable rain) beats the sky description.
+        code=_with_rain(current["weather_code"], 0, current["precipitation"], 0.1, cfg),
         is_day=bool(current["is_day"]),
         hours=hours,
         days=days,
