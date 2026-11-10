@@ -15,7 +15,7 @@
 GitHub Actions（每 30 分鐘，免費）
   ├─ 攞天氣（Open-Meteo，免費，唔使註冊）
   ├─ 攞 Google Calendar（私人 iCal 連結）
-  └─ 畫成 600×800 黑白圖，放上 GitHub Pages（秘密檔名）
+  └─ 畫成打橫（800×600）黑白圖，轉 90° 配合 Kindle，放上 GitHub Pages（秘密檔名）
         ↓
 Kindle（kindle-dash）
   每次醒嚟 → WiFi 下載張圖 → 顯示 → 印埋電量 → 返去瞓
@@ -44,7 +44,7 @@ cd ~/"Kindle Project"
 python3 -m venv .venv
 .venv/bin/pip install -r renderer/requirements.txt
 .venv/bin/python renderer/render.py --demo-calendar --out out/preview.png
-open out/preview.png
+open out/preview.png   # 張圖係打側嘅，因為 Kindle 會打橫擺
 ```
 
 `--demo-calendar` 用示範行程。想睇真行程，就先設定 `ICAL_URLS`（見步驟 2）：
@@ -127,7 +127,8 @@ ICAL_URLS="你的iCal連結" .venv/bin/python renderer/render.py
 
 - **充電**：直接插線就得，唔使停程式。
 - **想用返 Kindle 睇書**：㩒住底部電源掣大約 20 秒，Kindle 重新開機就會變返正常。之後喺 KUAL 撳 Start 就再開始。
-- **電量**：每次更新都會喺左下角顯示 `Battery 65%`；低過 20% 會顯示 `LOW BATTERY`。
+- **打橫擺**：預設 Kindle 啲掣喺**右邊**。想掣喺左邊，就將 `renderer/config.json` 嘅 `kindle_buttons` 改做 `"left"`，再將 `env.sh` 嘅 `BATTERY_ROW` 改做 `0`。
+- **電量**：每次更新都會喺右邊窄位**打側**顯示 `Battery 65%`（Kindle 4 嘅 eips 唔可以轉字方向）；低過 20% 會顯示 `LOW BATTERY`。
 - **電量字出錯位置**：改 `env.sh` 嘅 `BATTERY_COL`、`BATTERY_ROW`。
 - **改更新時間**：改 `env.sh` 嘅 `REFRESH_SCHEDULE`。
 - **改版面**：改 `renderer/render.py`，push 上 GitHub 就會自動更新。

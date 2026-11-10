@@ -19,9 +19,10 @@ export FULL_DISPLAY_REFRESH_RATE=1
 # the longest gap (22:10 -> 06:10) is 8 hours, so 12 hours is never reached.
 export SLEEP_SCREEN_INTERVAL=43200
 
-# Battery text printed in the empty bottom-left corner of the image.
-# eips counts in text cells, not pixels; nudge these if the text lands
-# in the wrong place on your screen.
+# Battery text. The dashboard is landscape but eips writes in the Kindle's
+# portrait grid (50 columns x 40 rows), so the text comes out sideways in the
+# blank strip at the right edge. Row 39 suits "kindle_buttons": "right"
+# (text at the bottom right, reading upwards); for "left" use row 0.
 export BATTERY_COL=1
 export BATTERY_ROW=39
 export BATTERY_WARN_PERCENT=20

@@ -22,8 +22,13 @@ from PIL import Image, ImageDraw, ImageFont
 import data
 from icons import BLACK, GREY, WHITE, describe, draw_icon
 
-WIDTH, HEIGHT = 600, 800  # Kindle 4 screen, portrait
+# The Kindle 4 screen is 600x800 portrait. The dashboard is drawn landscape
+# (800x600) and turned a quarter so it reads correctly with the Kindle on its
+# side. eips can't offset images on the K4, so the battery level is printed
+# as text by the Kindle; it lands in the blank strip at the right edge.
+WIDTH, HEIGHT = 800, 600
 MARGIN = 24
+SPLIT = 400  # weather on the left, calendar on the right
 WEEKDAYS = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
 HERE = Path(__file__).resolve().parent
 
@@ -105,62 +110,73 @@ def render(cfg, weather, events, calendar_note, now):
     d = ImageDraw.Draw(img)
     today = now.date()
     right = WIDTH - MARGIN
+    left_end = SPLIT - 12  # right edge of the weather column
 
-    # Header: date, weekday, place.
-    d.text((MARGIN, 14), f"{now.month}月{now.day}日", font=font(46, "bold"), fill=BLACK)
-    date_w = text_width(f"{now.month}月{now.day}日", font(46, "bold"))
-    d.text((MARGIN + date_w + 14, 32), WEEKDAYS[now.weekday()], font=font(28), fill=BLACK)
+    # Header across the top: date, weekday, place.
+    date_text = f"{now.month}月{now.day}日"
+    d.text((MARGIN, 8), date_text, font=font(44, "bold"), fill=BLACK)
+    date_w = text_width(date_text, font(44, "bold"))
+    d.text((MARGIN + date_w + 14, 24), WEEKDAYS[now.weekday()], font=font(28), fill=BLACK)
     place = cfg["location_name"]
-    d.text((right - text_width(place, font(22)), 38), place, font=font(22), fill=GREY)
-    d.line([(MARGIN, 84), (right, 84)], fill=BLACK, width=2)
+    d.text((right - text_width(place, font(22)), 30), place, font=font(22), fill=GREY)
+    d.line([(MARGIN, 74), (right, 74)], fill=BLACK, width=2)
+    d.line([(SPLIT, 86), (SPLIT, HEIGHT - 20)], fill=GREY, width=1)
 
-    # Current weather.
+    # --- Left column: weather.
     today_forecast = weather.days[0]
-    draw_icon(d, weather.code, MARGIN + 62, 160, 124, night=not weather.is_day)
-    d.text((160, 88), deg(weather.temp), font=font(84, "bold"), fill=BLACK)
-    d.text((166, 196), describe(weather.code), font=font(28, "bold"), fill=BLACK)
+    draw_icon(d, weather.code, MARGIN + 58, 148, 116, night=not weather.is_day)
+    d.text((150, 76), deg(weather.temp), font=font(84, "bold"), fill=BLACK)
+    d.text((156, 184), describe(weather.code), font=font(28, "bold"), fill=BLACK)
 
     details = [
-        f"最高 {deg(today_forecast.t_max)}  最低 {deg(today_forecast.t_min)}",
-        f"體感 {deg(weather.feels)}  濕度 {weather.humidity}%",
-        f"降雨機會 {today_forecast.rain}%",
-        f"風速 {round(weather.wind)} km/h",
-        f"日出 {today_forecast.sunrise:%H:%M}  日落 {today_forecast.sunset:%H:%M}",
+        (f"最高 {deg(today_forecast.t_max)}  最低 {deg(today_forecast.t_min)}",
+         f"體感 {deg(weather.feels)}  濕度 {weather.humidity}%"),
+        (f"降雨機會 {today_forecast.rain}%", f"風速 {round(weather.wind)} km/h"),
+        (f"日出 {today_forecast.sunrise:%H:%M}", f"日落 {today_forecast.sunset:%H:%M}"),
     ]
-    for i, line in enumerate(details):
-        f = font(19)
-        d.text((right - text_width(line, f), 96 + i * 27), line, font=f, fill=BLACK)
+    half = (left_end - MARGIN) / 2
+    for i, pair in enumerate(details):
+        for j, line in enumerate(pair):
+            d.text((MARGIN + 4 + j * half, 234 + i * 26), line, font=font(18), fill=BLACK)
 
-    d.line([(MARGIN, 242), (right, 242)], fill=GREY, width=1)
+    d.line([(MARGIN, 318), (left_end, 318)], fill=GREY, width=1)
 
     # Next hours, every three hours.
-    col_w = (WIDTH - 2 * MARGIN) / max(1, len(weather.hours))
+    col_w = (left_end - MARGIN) / max(1, len(weather.hours))
     for i, hour in enumerate(weather.hours):
         cx = MARGIN + col_w * (i + 0.5)
-        _centred(d, cx, 248, f"{hour.time:%H:%M}", font(18), GREY)
-        draw_icon(d, hour.code, cx, 292, 46, night=not hour.is_day)
-        _centred(d, cx, 316, f"{deg(hour.temp)}  雨{hour.rain}%", font(18), BLACK)
+        _centred(d, cx, 324, f"{hour.time:%H:%M}", font(16), GREY)
+        draw_icon(d, hour.code, cx, 368, 44, night=not hour.is_day)
+        _centred(d, cx, 392, deg(hour.temp), font(19), BLACK)
+        _centred(d, cx, 416, f"雨{hour.rain}%", font(15), GREY)
 
-    d.line([(MARGIN, 346), (right, 346)], fill=GREY, width=1)
+    d.line([(MARGIN, 446), (left_end, 446)], fill=GREY, width=1)
 
-    # Next three days: label on top, icon on the left, temperatures on the right.
+    # Next three days: label on top, icon below, temperatures beside it.
     upcoming = weather.days[1:4]
-    col_w = (WIDTH - 2 * MARGIN) / max(1, len(upcoming))
+    col_w = (left_end - MARGIN) / max(1, len(upcoming))
     for i, day in enumerate(upcoming):
         x = MARGIN + col_w * i
-        d.text((x + 8, 352), day_label(day.date, today), font=font(20, "bold"), fill=BLACK)
-        draw_icon(d, day.code, x + 34, 404, 48)
-        d.text((x + 68, 380), f"{deg(day.t_max)} / {deg(day.t_min)}", font=font(20), fill=BLACK)
-        d.text((x + 68, 406), f"雨 {day.rain}%", font=font(17), fill=GREY)
+        _centred(d, x + col_w / 2, 452, day_label(day.date, today), font(19, "bold"), BLACK)
+        draw_icon(d, day.code, x + col_w / 2, 506, 46)
+        _centred(d, x + col_w / 2, 532, f"{deg(day.t_max)} / {deg(day.t_min)}", font(18), BLACK)
+        _centred(d, x + col_w / 2, 556, f"雨 {day.rain}%", font(15), GREY)
 
-    d.line([(MARGIN, 440), (right, 440)], fill=BLACK, width=2)
+    # --- Right column: calendar.
+    _draw_calendar(d, events, calendar_note, today,
+                   left=SPLIT + 14, right=right, top=86, bottom=556)
 
-    _draw_calendar(d, events, calendar_note, today, top=450, bottom=766)
-
-    # Footer. The bottom-left corner stays empty: the Kindle prints its
-    # battery level there after showing the image.
+    # Footer under the calendar. The strip right of MARGIN is left blank:
+    # the Kindle prints its battery level there, sideways.
     stamp = f"更新於 {now.month}月{now.day}日 {now:%H:%M}"
-    d.text((right - text_width(stamp, font(16)), 776), stamp, font=font(16), fill=GREY)
+    d.text((right - text_width(stamp, font(15)), 572), stamp, font=font(15), fill=GREY)
+
+    # Turn it to the Kindle's portrait frame. With the buttons on the right the
+    # picture turns clockwise; with them on the left, anticlockwise.
+    if cfg.get("kindle_buttons", "right") == "left":
+        img = img.transpose(Image.Transpose.ROTATE_90)
+    else:
+        img = img.transpose(Image.Transpose.ROTATE_270)
 
     # The Kindle 4 shows 16 shades of grey; snap to them for crisp text.
     return img.point(lambda v: min(255, (v + 8) // 17 * 17))
@@ -170,14 +186,13 @@ def _centred(d, cx, y, text, f, fill):
     d.text((cx - text_width(text, f) / 2, y), text, font=f, fill=fill)
 
 
-def _draw_calendar(d, events, note, today, top, bottom):
-    right = WIDTH - MARGIN
-    row_h = 34
-    title_font, time_font, heading_font = font(24), font(22, "bold"), font(22, "bold")
+def _draw_calendar(d, events, note, today, left, right, top, bottom):
+    row_h = 32
+    title_font, time_font, heading_font = font(22), font(20, "bold"), font(22, "bold")
     y = top
 
     if note:
-        d.text((MARGIN, y + 4), note, font=font(22), fill=GREY)
+        d.text((left, y + 4), note, font=font(20), fill=GREY)
         return
 
     days = sorted({e.day for e in events} | {today})
@@ -187,28 +202,28 @@ def _draw_calendar(d, events, note, today, top, bottom):
             break
 
         heading = f"{day_label(day, today)}行程" if day == today else day_label(day, today)
-        d.text((MARGIN, y), heading, font=heading_font, fill=BLACK)
+        d.text((left, y), heading, font=heading_font, fill=BLACK)
         if day != today:
-            d.text((MARGIN + text_width(heading, heading_font) + 10, y + 3),
+            d.text((left + text_width(heading, heading_font) + 10, y + 3),
                    f"{day.month}月{day.day}日", font=font(18), fill=GREY)
         y += row_h
 
         if not todays:
-            d.text((MARGIN + 8, y), "冇行程", font=font(20), fill=GREY)
+            d.text((left + 6, y), "冇行程", font=font(20), fill=GREY)
             y += row_h
             continue
 
         for i, event in enumerate(todays):
             remaining = len(todays) - i
             if y + row_h > bottom or (remaining > 1 and y + 2 * row_h > bottom):
-                d.text((MARGIN + 8, y), f"…仲有 {remaining} 項", font=font(20), fill=GREY)
+                d.text((left + 6, y), f"…仲有 {remaining} 項", font=font(20), fill=GREY)
                 return
             when = "全日" if event.start is None else f"{event.start:%H:%M}"
-            d.text((MARGIN + 8, y + 2), when, font=time_font, fill=BLACK)
-            d.text((MARGIN + 92, y), fit(event.title, title_font, right - MARGIN - 92),
+            d.text((left + 6, y + 2), when, font=time_font, fill=BLACK)
+            d.text((left + 76, y), fit(event.title, title_font, right - left - 76),
                    font=title_font, fill=BLACK)
             y += row_h
-        y += 6
+        y += 8
 
 
 # -------------------------------------------------------------------- main
