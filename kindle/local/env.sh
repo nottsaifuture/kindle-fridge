@@ -9,14 +9,15 @@ export WIFI_TEST_IP=1.1.1.1
 export TIMEZONE="Europe/London"
 
 # When to wake up and fetch a new image (cron format, Kindle's local time).
-# 06:10, 07:10, 08:10, then every two hours until 22:10. Nothing overnight.
-export REFRESH_SCHEDULE="10 6,7,8,10,12,14,16,18,20,22 * * *"
+# Every two hours from 06:05 to 20:05; nothing after 9pm or before 6am.
+# The five past gives GitHub's :45 render time to finish (it often runs late).
+export REFRESH_SCHEDULE="5 6,8,10,12,14,16,18,20 * * *"
 
 # Do a full (flashing) refresh every other update to clear e-ink ghosting.
 export FULL_DISPLAY_REFRESH_RATE=1
 
 # Keep the dashboard on screen overnight instead of the "sleeping" picture:
-# the longest gap (22:10 -> 06:10) is 8 hours, so 12 hours is never reached.
+# the longest gap (20:05 -> 06:05) is 10 hours, so 12 hours is never reached.
 export SLEEP_SCREEN_INTERVAL=43200
 
 # Battery text. The dashboard is landscape but eips writes in the Kindle's
