@@ -103,12 +103,52 @@ def wrap(text, f, max_width, max_lines):
     return [fit(line, f, max_width) for line in lines]
 
 
+# Every word on the dashboard, per language ("language" in config.json).
+TEXT = {
+    "en": {
+        "weekdays": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+        "date": lambda d: f"{d.day} {d:%b}",
+        "today": "Today", "tomorrow": "Tomorrow",
+        "details": lambda w, t: [
+            (f"High {deg(t.t_max)}  Low {deg(t.t_min)}", f"Feels like {deg(w.feels)}"),
+            (f"Rain {t.rain}%", f"Humidity {w.humidity}%"),
+            (f"Wind {round(w.wind)} km/h", f"Sun {t.sunrise:%H:%M}–{t.sunset:%H:%M}"),
+        ],
+        "rain": lambda p: f"Rain {p}%",
+        "cal_today": "Today", "no_events": "No events",
+        "more": lambda n: f"…{n} more", "all_day": "All day",
+        "lunch": lambda label: f"{label}'s lunch", "dessert": "Dessert: ",
+        "no_calendar": "Calendar not set up (ICAL_URLS)",
+        "calendar_failed": "Calendar unavailable right now",
+        "updated": lambda d: f"Updated {d.day} {d:%b} {d:%H:%M}",
+    },
+    "zh-HK": {
+        "weekdays": WEEKDAYS,
+        "date": lambda d: f"{d.month}月{d.day}日",
+        "today": "今日", "tomorrow": "明日",
+        "details": lambda w, t: [
+            (f"最高 {deg(t.t_max)}  最低 {deg(t.t_min)}", f"體感 {deg(w.feels)}  濕度 {w.humidity}%"),
+            (f"降雨機會 {t.rain}%", f"風速 {round(w.wind)} km/h"),
+            (f"日出 {t.sunrise:%H:%M}", f"日落 {t.sunset:%H:%M}"),
+        ],
+        "rain": lambda p: f"雨{p}%",
+        "cal_today": "今日行程", "no_events": "冇行程",
+        "more": lambda n: f"…仲有 {n} 項", "all_day": "全日",
+        "lunch": lambda label: f"{label}午餐", "dessert": "甜品：",
+        "no_calendar": "未設定日曆（ICAL_URLS）",
+        "calendar_failed": "日曆暫時讀取唔到",
+        "updated": lambda d: f"更新於 {d.month}月{d.day}日 {d:%H:%M}",
+    },
+}
+T = TEXT["en"]  # set from config in render()
+
+
 def day_label(day, today):
     if day == today:
-        return "今日"
+        return T["today"]
     if day == today + timedelta(days=1):
-        return "明日"
-    return WEEKDAYS[day.weekday()]
+        return T["tomorrow"]
+    return T["weekdays"][day.weekday()]
 
 
 def deg(value):
@@ -119,6 +159,9 @@ def deg(value):
 
 
 def render(cfg, weather, events, calendar_note, now, lunches=()):
+    global T
+    lang = cfg.get("language", "en")
+    T = TEXT.get(lang, TEXT["en"])
     img = Image.new("L", (WIDTH, HEIGHT), WHITE)
     d = ImageDraw.Draw(img)
     today = now.date()
@@ -127,10 +170,10 @@ def render(cfg, weather, events, calendar_note, now, lunches=()):
 
     # Header across the top: date, weekday, place.
     # Placed by baseline ("ls" anchor) so Noto and the Mac preview fonts line up.
-    date_text = f"{now.month}月{now.day}日"
+    date_text = T["date"](now)
     d.text((MARGIN, 68), date_text, font=font(58, "bold"), fill=BLACK, anchor="ls")
     date_w = text_width(date_text, font(58, "bold"))
-    d.text((MARGIN + date_w + 16, 66), WEEKDAYS[now.weekday()], font=font(34), fill=BLACK, anchor="ls")
+    d.text((MARGIN + date_w + 16, 66), T["weekdays"][now.weekday()], font=font(34), fill=BLACK, anchor="ls")
     place = cfg["location_name"]
     d.text((right - text_width(place, font(22)), 64), place, font=font(22), fill=GREY, anchor="ls")
     d.line([(MARGIN, 82), (right, 82)], fill=BLACK, width=2)
@@ -140,19 +183,16 @@ def render(cfg, weather, events, calendar_note, now, lunches=()):
     # temperature can be big.
     today_forecast = weather.days[0]
     draw_icon(d, weather.code, MARGIN + 56, 140, 104, night=not weather.is_day)
-    _centred(d, MARGIN + 56, 186, describe(weather.code), font(26, "bold"), BLACK)
+    desc_font = font(26 if lang != "en" else 21, "bold")
+    _centred(d, MARGIN + 56, 186 if lang != "en" else 190,
+             fit(describe(weather.code, lang), desc_font, 132), desc_font, BLACK)
     d.text((158, 204), deg(weather.temp), font=font(128, "bold"), fill=BLACK, anchor="ls")
 
-    details = [
-        (f"最高 {deg(today_forecast.t_max)}  最低 {deg(today_forecast.t_min)}",
-         f"體感 {deg(weather.feels)}  濕度 {weather.humidity}%"),
-        (f"降雨機會 {today_forecast.rain}%", f"風速 {round(weather.wind)} km/h"),
-        (f"日出 {today_forecast.sunrise:%H:%M}", f"日落 {today_forecast.sunset:%H:%M}"),
-    ]
     half = (left_end - MARGIN) / 2
-    for i, pair in enumerate(details):
+    for i, pair in enumerate(T["details"](weather, today_forecast)):
         for j, line in enumerate(pair):
-            d.text((MARGIN + 4 + j * half, 234 + i * 26), line, font=font(18), fill=BLACK)
+            d.text((MARGIN + 4 + j * half, 234 + i * 26), fit(line, font(18), half - 8),
+                   font=font(18), fill=BLACK)
 
     d.line([(MARGIN, 318), (left_end, 318)], fill=GREY, width=1)
 
@@ -163,7 +203,7 @@ def render(cfg, weather, events, calendar_note, now, lunches=()):
         _centred(d, cx, 324, f"{hour.time:%H:%M}", font(16), GREY)
         draw_icon(d, hour.code, cx, 368, 44, night=not hour.is_day)
         _centred(d, cx, 392, deg(hour.temp), font(19), BLACK)
-        _centred(d, cx, 416, f"雨{hour.rain}%", font(15), GREY)
+        _centred(d, cx, 416, T["rain"](hour.rain), font(15), GREY)
 
     d.line([(MARGIN, 446), (left_end, 446)], fill=GREY, width=1)
 
@@ -175,7 +215,7 @@ def render(cfg, weather, events, calendar_note, now, lunches=()):
         _centred(d, x + col_w / 2, 452, day_label(day.date, today), font(19, "bold"), BLACK)
         draw_icon(d, day.code, x + col_w / 2, 506, 46)
         _centred(d, x + col_w / 2, 532, f"{deg(day.t_max)} / {deg(day.t_min)}", font(18), BLACK)
-        _centred(d, x + col_w / 2, 556, f"雨 {day.rain}%", font(15), GREY)
+        _centred(d, x + col_w / 2, 556, T["rain"](day.rain), font(15), GREY)
 
     # --- Right column: calendar, then school lunch (only if there is a menu).
     col_left = SPLIT + 14
@@ -190,7 +230,7 @@ def render(cfg, weather, events, calendar_note, now, lunches=()):
 
     # Footer under the calendar. The strip right of MARGIN is left blank:
     # the Kindle prints its battery level there, sideways.
-    stamp = f"更新於 {now.month}月{now.day}日 {now:%H:%M}"
+    stamp = T["updated"](now)
     d.text((right - text_width(stamp, font(15)), 572), stamp, font=font(15), fill=GREY)
 
     # Turn it to the Kindle's portrait frame. With the buttons on the right the
@@ -213,7 +253,7 @@ LUNCH_HEAD, LUNCH_MAIN, LUNCH_DESSERT = 28, 24, 22  # line heights
 
 def _lunch_lines(lunch, width):
     main = wrap(lunch.main, font(19), width, 2)
-    dessert = [fit("甜品：" + lunch.dessert, font(17), width)] if lunch.dessert else []
+    dessert = [fit(T["dessert"] + lunch.dessert, font(17), width)] if lunch.dessert else []
     return main, dessert
 
 
@@ -228,7 +268,7 @@ def _lunch_height(lunches, width):
 def _draw_lunches(d, lunches, today, left, right, y):
     for lunch in lunches:
         main, dessert = _lunch_lines(lunch, right - left - 6)
-        d.text((left, y), f"{day_label(lunch.day, today)}午餐", font=font(20, "bold"), fill=BLACK)
+        d.text((left, y), T["lunch"](day_label(lunch.day, today)), font=font(20, "bold"), fill=BLACK)
         y += LUNCH_HEAD
         for line in main:
             d.text((left + 6, y), line, font=font(19), fill=BLACK)
@@ -242,10 +282,12 @@ def _draw_lunches(d, lunches, today, left, right, y):
 def _draw_calendar(d, events, note, today, left, right, top, bottom):
     row_h = 30
     title_font, time_font, heading_font = font(22), font(20, "bold"), font(22, "bold")
+    # Titles start after the widest time label ("09:30" or "All day").
+    title_x = round(max(text_width("00:00", time_font), text_width(T["all_day"], time_font))) + 18
     y = top
 
     if note:
-        d.text((left, y + 4), note, font=font(20), fill=GREY)
+        d.text((left, y + 4), T[note], font=font(20), fill=GREY)
         return
 
     days = sorted({e.day for e in events} | {today})
@@ -254,26 +296,26 @@ def _draw_calendar(d, events, note, today, left, right, top, bottom):
         if y + row_h > bottom:
             break
 
-        heading = f"{day_label(day, today)}行程" if day == today else day_label(day, today)
+        heading = T["cal_today"] if day == today else day_label(day, today)
         d.text((left, y), heading, font=heading_font, fill=BLACK)
         if day != today:
             d.text((left + text_width(heading, heading_font) + 10, y + 3),
-                   f"{day.month}月{day.day}日", font=font(18), fill=GREY)
+                   T["date"](day), font=font(18), fill=GREY)
         y += row_h
 
         if not todays:
-            d.text((left + 6, y), "冇行程", font=font(20), fill=GREY)
+            d.text((left + 6, y), T["no_events"], font=font(20), fill=GREY)
             y += row_h
             continue
 
         for i, event in enumerate(todays):
             remaining = len(todays) - i
             if y + row_h > bottom or (remaining > 1 and y + 2 * row_h > bottom):
-                d.text((left + 6, y), f"…仲有 {remaining} 項", font=font(20), fill=GREY)
+                d.text((left + 6, y), T["more"](remaining), font=font(20), fill=GREY)
                 return
-            when = "全日" if event.start is None else f"{event.start:%H:%M}"
+            when = T["all_day"] if event.start is None else f"{event.start:%H:%M}"
             d.text((left + 6, y + 2), when, font=time_font, fill=BLACK)
-            d.text((left + 76, y), fit(event.title, title_font, right - left - 76),
+            d.text((left + title_x, y), fit(event.title, title_font, right - left - title_x),
                    font=title_font, fill=BLACK)
             y += row_h
         y += 8
@@ -305,9 +347,9 @@ def main():
         urls = [u for u in re.split(r"[\s,]+", os.environ.get("ICAL_URLS", "")) if u]
         events, failed = data.fetch_events(urls, tz, now, cfg.get("calendar_days", 2))
         if not urls:
-            note = "未設定日曆（ICAL_URLS）"
+            note = "no_calendar"
         elif failed == len(urls):
-            note = "日曆暫時讀取唔到"
+            note = "calendar_failed"
 
     lunches = data.load_lunches(args.menus, now.date())
     image = render(cfg, weather, events, note, now, lunches)

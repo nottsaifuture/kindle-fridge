@@ -57,6 +57,8 @@ ICAL_URLS="你的iCal連結" .venv/bin/python renderer/render.py
 
 **改地點：**打開 `renderer/config.json`，改 `location_name`、`latitude`、`longitude`。用城市中心座標就得，唔好用屋企準確位置，因為呢個檔案會公開喺 GitHub。
 
+**改語言：**`renderer/config.json` 嘅 `language`：`"en"` 係英文（預設），`"zh-HK"` 係中文。
+
 ## 步驟 2：攞 Google Calendar 私人連結
 
 1. 用電腦開 [Google Calendar](https://calendar.google.com)。

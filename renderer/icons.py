@@ -40,7 +40,20 @@ WMO = {
 }
 
 
-def describe(code):
+ENGLISH = {
+    0: "Clear", 1: "Mostly clear", 2: "Partly cloudy", 3: "Cloudy",
+    45: "Fog", 48: "Fog",
+    51: "Light drizzle", 53: "Drizzle", 55: "Heavy drizzle", 56: "Icy drizzle", 57: "Icy drizzle",
+    61: "Light rain", 63: "Rain", 65: "Heavy rain", 66: "Icy rain", 67: "Icy rain",
+    71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains",
+    80: "Showers", 81: "Showers", 82: "Heavy showers", 85: "Snow showers", 86: "Snow showers",
+    95: "Thunder", 96: "Thunder, hail", 99: "Thunder, hail",
+}
+
+
+def describe(code, lang="zh-HK"):
+    if lang == "en":
+        return ENGLISH.get(code, "—")
     return WMO.get(code, ("—", "cloudy"))[0]
 
 
