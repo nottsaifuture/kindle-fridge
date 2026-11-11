@@ -36,13 +36,13 @@ HERE = Path(__file__).resolve().parent
 # installed on GitHub Actions; the macOS fonts are only for local previews.
 FONTS = {
     "regular": [
-        (str(HERE.parent / "fonts" / "NotoSansCJK-Regular.ttc"), "HK"),  # GitHub cache
+        (str(HERE.parent / "fonts" / "NotoSansHK-Regular.otf"), None),  # GitHub Actions
         ("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "HK"),
         ("/System/Library/Fonts/STHeiti Light.ttc", None),
         ("/System/Library/Fonts/Hiragino Sans GB.ttc", None),
     ],
     "bold": [
-        (str(HERE.parent / "fonts" / "NotoSansCJK-Bold.ttc"), "HK"),  # GitHub cache
+        (str(HERE.parent / "fonts" / "NotoSansHK-Bold.otf"), None),  # GitHub Actions
         ("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", "HK"),
         ("/System/Library/Fonts/STHeiti Medium.ttc", None),
         ("/System/Library/Fonts/Hiragino Sans GB.ttc", None),
@@ -187,9 +187,13 @@ def render(cfg, weather, events, calendar_note, now, lunches=(), next_bin=None):
     # temperature can be big.
     today_forecast = weather.days[0]
     draw_icon(d, weather.code, MARGIN + 56, 140, 104, night=not weather.is_day)
-    desc_font = font(26 if lang != "en" else 21, "bold")
-    _centred(d, MARGIN + 56, 186 if lang != "en" else 190,
-             fit(describe(weather.code, lang), desc_font, 132), desc_font, BLACK)
+    # Description under the icon, shrunk until it fits beside the temperature.
+    desc = describe(weather.code, lang)
+    for size in (26, 22, 20, 18, 16):
+        desc_font = font(size, "bold")
+        if text_width(desc, desc_font) <= 128:
+            break
+    _centred(d, MARGIN + 56, 186 + (26 - size) // 2, fit(desc, desc_font, 128), desc_font, BLACK)
     d.text((158, 204), deg(weather.temp), font=font(128, "bold"), fill=BLACK, anchor="ls")
 
     half = (left_end - MARGIN) / 2

@@ -48,23 +48,24 @@ jobs:
           cache: pip
           cache-dependency-path: renderer/requirements.txt
 
-      # Keep a copy of the Noto CJK fonts in GitHub's cache so a run doesn't
-      # depend on Ubuntu's download servers (they once failed DNS mid-run).
+      # Noto Sans HK from Google's Noto project on GitHub, kept in the Actions
+      # cache. (apt's Ubuntu mirrors were unreachable from the runner for
+      # hours, so the font no longer comes from apt.)
       - name: Restore Chinese font
         id: font-cache
         uses: actions/cache@v4
         with:
           path: fonts
-          key: noto-cjk-ttc-v1
+          key: noto-sans-hk-v1
 
-      - name: Install Chinese font
+      - name: Download Chinese font
         if: steps.font-cache.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get -o Acquire::Retries=5 update -q || true
-          sudo apt-get -o Acquire::Retries=5 install -y -q fonts-noto-cjk
           mkdir -p fonts
-          cp /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc \
-             /usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc fonts/
+          for weight in Regular Bold; do
+            curl -fsSL --retry 5 --retry-all-errors -o "fonts/NotoSansHK-$weight.otf" \
+              "https://github.com/notofonts/noto-cjk/raw/main/Sans/SubsetOTF/HK/NotoSansHK-$weight.otf"
+          done
 
       - run: pip install -r renderer/requirements.txt
 
