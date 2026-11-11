@@ -36,11 +36,13 @@ HERE = Path(__file__).resolve().parent
 # installed on GitHub Actions; the macOS fonts are only for local previews.
 FONTS = {
     "regular": [
+        (str(HERE.parent / "fonts" / "NotoSansCJK-Regular.ttc"), "HK"),  # GitHub cache
         ("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", "HK"),
         ("/System/Library/Fonts/STHeiti Light.ttc", None),
         ("/System/Library/Fonts/Hiragino Sans GB.ttc", None),
     ],
     "bold": [
+        (str(HERE.parent / "fonts" / "NotoSansCJK-Bold.ttc"), "HK"),  # GitHub cache
         ("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", "HK"),
         ("/System/Library/Fonts/STHeiti Medium.ttc", None),
         ("/System/Library/Fonts/Hiragino Sans GB.ttc", None),
