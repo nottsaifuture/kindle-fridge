@@ -12,7 +12,9 @@
 ## 點運作
 
 ```
-GitHub Actions（每 30 分鐘，免費）
+Cloudflare Worker 定時器（05:50–20:50 倫敦時間，每 30 分鐘，免費）
+        ↓ 叫 GitHub 畫圖
+GitHub Actions（免費）
   ├─ 攞天氣（Open-Meteo，免費，唔使註冊）
   ├─ 攞 Google Calendar（私人 iCal 連結）
   └─ 畫成打橫（800×600）黑白圖，轉 90° 配合 Kindle，放上 GitHub Pages（秘密檔名）
@@ -31,7 +33,8 @@ Kindle（kindle-dash）
 | `renderer/data.py` | 攞天氣同日曆資料 |
 | `renderer/icons.py` | 天氣圖示 |
 | `renderer/config.json` | **地點、時區**等設定 |
-| `.github/workflows/render.yml` | GitHub 每 30 分鐘自動畫圖同發佈 |
+| `.github/workflows/render.yml` | GitHub 畫圖同發佈（由定時器觸發，或者 push 嘅時候） |
+| `trigger/` | Cloudflare Worker 定時器，日間每 30 分鐘叫 GitHub 畫圖 |
 | `kindle/local/env.sh` | Kindle 設定：圖片網址、更新時間 |
 | `kindle/local/fetch-dashboard.sh` | Kindle 下載張圖，再印電量 |
 
@@ -90,9 +93,9 @@ ICAL_URLS="你的iCal連結" .venv/bin/python renderer/render.py
 
 **私隱：**張圖只可以用呢條秘密網址打開，網站冇其他頁面會連去佢，原理同 Google Calendar 嘅私人 iCal 連結一樣。唔好將條網址俾人。
 
-> GitHub 如果 60 日冇人改過個 repo，會自動暫停排程。workflow 最後一步「Keep the schedule alive」每次都會重新啟用自己，所以正常唔會暫停。萬一收到 GitHub email 話暫停咗，去 Actions 撳返 **Enable workflow** 就得。
+> **定時畫圖**唔係用 GitHub 自己嘅排程，因為佢成日跳過，而且 60 日冇改動就會暫停。而家改用 Cloudflare Worker `kindle-fridge-trigger`（`trigger/` 資料夾），喺倫敦時間 05:50–20:50 每 30 分鐘叫 GitHub 畫一次。佢用一條只限呢個 repo、只有 **Actions** 權限嘅 GitHub token（Worker secret `GITHUB_TOKEN`）。改咗 `trigger/` 之後，要喺嗰個資料夾行 `npx wrangler deploy`。
 >
-> GitHub 排程唔準時，有時會遲，甚至跳過。所以 workflow 每 10 分鐘試一次。Kindle 屏幕上面嘅「更新於」係 **GitHub 畫圖嘅時間**，唔係 Kindle 下載嘅時間。
+> Kindle 屏幕上面嘅「Updated」（更新於）係 **GitHub 畫圖嘅時間**，唔係 Kindle 下載嘅時間。
 
 ## 步驟 4：Kindle 越獄同安裝
 

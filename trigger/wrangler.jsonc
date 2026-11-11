@@ -6,8 +6,9 @@
   "workers_dev": false,
   "preview_urls": false,
   "triggers": {
-    // Twice an hour (UTC). The :50 run finishes well before the Kindle wakes
-    // at five past the hour; the :20 run keeps the image fresh in between.
-    "crons": ["20,50 * * * *"]
+    // Twice an hour, UTC hours 04-21 so both GMT and BST daytimes are
+    // covered; worker.js skips anything outside 05:45-21:00 London time.
+    // The :50 run finishes well before the Kindle wakes at five past.
+    "crons": ["20,50 4-21 * * *"]
   }
 }
