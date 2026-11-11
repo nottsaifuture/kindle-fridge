@@ -1,6 +1,7 @@
 """Fetch the weather and calendar data shown on the dashboard."""
 
 import json
+import re
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -268,3 +269,53 @@ def load_lunches(path, today):
             lunches.append(Lunch(day, str(item["main"]).strip(),
                                  str(item.get("dessert", "")).strip()))
     return lunches
+
+
+# ------------------------------------------------------------- bin collection
+
+BIN_PATTERN = re.compile(r"\b(green|black)\s+bin\b", re.IGNORECASE)
+
+
+@dataclass
+class Bin:
+    day: date
+    colour: str  # "green" or "black"
+
+
+def bin_calendar_url(value):
+    """Accept a public Google Calendar ID or a full iCal link."""
+    value = value.strip()
+    if not value or value.startswith("https://"):
+        return value
+    return ("https://calendar.google.com/calendar/ical/"
+            + urllib.parse.quote(value, safe="") + "/public/basic.ics")
+
+
+def fetch_next_bin(calendar, tz, today, days=7):
+    """Next bin collection within `days` days, from the same public calendar the
+    Fire dashboard uses: all-day events titled "... Green bin ..." or
+    "... Black bin ...". Returns None if there is none, or on any error."""
+    url = bin_calendar_url(calendar)
+    if not url:
+        return None
+    start = datetime.combine(today, time.min, tz)
+    try:
+        cal = icalendar.Calendar.from_ical(_get(url))
+        items = recurring_ical_events.of(cal).between(start, start + timedelta(days=days))
+    except Exception as error:
+        print(f"Bin calendar failed: {type(error).__name__}")
+        return None
+
+    found = []
+    for item in items:
+        if str(item.get("STATUS", "")).upper() == "CANCELLED":
+            continue
+        match = BIN_PATTERN.search(str(item.get("SUMMARY", "")))
+        if not match:
+            continue
+        day = item.decoded("DTSTART")
+        day = day.astimezone(tz).date() if isinstance(day, datetime) else day
+        if day >= today:
+            found.append(Bin(day, match.group(1).lower()))
+    found.sort(key=lambda b: (b.day, b.colour))
+    return found[0] if found else None

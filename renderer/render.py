@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 from PIL import Image, ImageDraw, ImageFont
 
 import data
-from icons import BLACK, GREY, WHITE, describe, draw_icon
+from icons import BLACK, GREY, LIGHT, WHITE, describe, draw_icon
 
 # The Kindle 4 screen is 600x800 portrait. The dashboard is drawn landscape
 # (800x600) and turned a quarter so it reads correctly with the Kindle on its
@@ -121,6 +121,7 @@ TEXT = {
         "no_calendar": "Calendar not set up (ICAL_URLS)",
         "calendar_failed": "Calendar unavailable right now",
         "updated": lambda d: f"Updated {d.day} {d:%b} {d:%H:%M}",
+        "bin": lambda colour, when: f"{colour.title()} bin · {when}",
     },
     "zh-HK": {
         "weekdays": WEEKDAYS,
@@ -138,6 +139,7 @@ TEXT = {
         "no_calendar": "未設定日曆（ICAL_URLS）",
         "calendar_failed": "日曆暫時讀取唔到",
         "updated": lambda d: f"更新於 {d.month}月{d.day}日 {d:%H:%M}",
+        "bin": lambda colour, when: f"{'綠色' if colour == 'green' else '黑色'}垃圾桶 · {when}",
     },
 }
 T = TEXT["en"]  # set from config in render()
@@ -158,7 +160,7 @@ def deg(value):
 # ------------------------------------------------------------------ layout
 
 
-def render(cfg, weather, events, calendar_note, now, lunches=()):
+def render(cfg, weather, events, calendar_note, now, lunches=(), next_bin=None):
     global T
     lang = cfg.get("language", "en")
     T = TEXT.get(lang, TEXT["en"])
@@ -174,8 +176,8 @@ def render(cfg, weather, events, calendar_note, now, lunches=()):
     d.text((MARGIN, 68), date_text, font=font(58, "bold"), fill=BLACK, anchor="ls")
     date_w = text_width(date_text, font(58, "bold"))
     d.text((MARGIN + date_w + 16, 66), T["weekdays"][now.weekday()], font=font(34), fill=BLACK, anchor="ls")
-    place = cfg["location_name"]
-    d.text((right - text_width(place, font(22)), 64), place, font=font(22), fill=GREY, anchor="ls")
+    if next_bin:
+        _draw_bin(d, next_bin, today, right)
     d.line([(MARGIN, 82), (right, 82)], fill=BLACK, width=2)
     d.line([(SPLIT, 92), (SPLIT, HEIGHT - 20)], fill=GREY, width=1)
 
@@ -230,7 +232,7 @@ def render(cfg, weather, events, calendar_note, now, lunches=()):
 
     # Footer under the calendar. The strip right of MARGIN is left blank:
     # the Kindle prints its battery level there, sideways.
-    stamp = T["updated"](now)
+    stamp = f"{cfg['location_name']} · {T['updated'](now)}"
     d.text((right - text_width(stamp, font(15)), 572), stamp, font=font(15), fill=GREY)
 
     # Turn it to the Kindle's portrait frame. With the buttons on the right the
@@ -246,6 +248,26 @@ def render(cfg, weather, events, calendar_note, now, lunches=()):
 
 def _centred(d, cx, y, text, f, fill):
     d.text((cx - text_width(text, f) / 2, y), text, font=f, fill=fill)
+
+
+def _draw_bin(d, next_bin, today, right):
+    """Badge in the header's top-right corner: a wheelie bin and its day.
+    Black bin: white on black. Green bin: black on light grey (no colour on
+    e-ink, so the word says which)."""
+    label = T["bin"](next_bin.colour, day_label(next_bin.day, today))
+    f = font(22, "bold")
+    black = next_bin.colour == "black"
+    bg, fg = (BLACK, WHITE) if black else (LIGHT, BLACK)
+    top, bottom = 16, 70
+    left = right - (text_width(label, f) + 70)
+    d.rounded_rectangle([left, top, right, bottom], radius=12, fill=bg,
+                        outline=BLACK, width=2)
+    # Wheelie bin: lid, tapered body, wheel.
+    bx, by = left + 14, top + 10
+    d.rectangle([bx - 2, by, bx + 26, by + 5], fill=fg)
+    d.polygon([(bx, by + 8), (bx + 24, by + 8), (bx + 21, by + 34), (bx + 3, by + 34)], fill=fg)
+    d.ellipse([bx + 15, by + 30, bx + 25, by + 40], fill=fg, outline=bg, width=2)
+    d.text((left + 50, (top + bottom) / 2), label, font=f, fill=fg, anchor="lm")
 
 
 LUNCH_HEAD, LUNCH_MAIN, LUNCH_DESSERT = 28, 24, 22  # line heights
@@ -332,6 +354,8 @@ def main():
                         help="show sample events instead of reading ICAL_URLS")
     parser.add_argument("--menus", default=os.environ.get("MENUS_JSON", ""),
                         help="school lunch menus.json (from the Fire dashboard); optional")
+    parser.add_argument("--demo-bin", choices=["green", "black"],
+                        help="show a sample bin collection instead of reading BIN_CALENDAR_ID")
     args = parser.parse_args()
 
     cfg = json.loads(Path(args.config).read_text(encoding="utf-8"))
@@ -352,7 +376,11 @@ def main():
             note = "calendar_failed"
 
     lunches = data.load_lunches(args.menus, now.date())
-    image = render(cfg, weather, events, note, now, lunches)
+    if args.demo_bin:
+        next_bin = data.Bin(now.date() + timedelta(days=2), args.demo_bin)
+    else:
+        next_bin = data.fetch_next_bin(os.environ.get("BIN_CALENDAR_ID", ""), tz, now.date())
+    image = render(cfg, weather, events, note, now, lunches, next_bin)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     image.save(out, optimize=True)

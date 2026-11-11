@@ -60,6 +60,12 @@ ICAL_URLS="你的iCal連結" .venv/bin/python renderer/render.py
 
 **改地點：**打開 `renderer/config.json`，改 `location_name`、`latitude`、`longitude`。用城市中心座標就得，唔好用屋企準確位置，因為呢個檔案會公開喺 GitHub。
 
+**垃圾桶日：**同 Fire dashboard 用同一個公開 Google Calendar（全日活動，標題有 "Green bin" 或者 "Black bin"）。將嗰個日曆嘅 **Calendar ID**（或者佢嘅公開 iCal 連結）加做 GitHub secret `BIN_CALENDAR_ID`：
+```bash
+gh secret set BIN_CALENDAR_ID -R nottsaifuture/kindle-fridge
+```
+未來 7 日內有收垃圾，右上角就會顯示邊個桶同邊日；冇就唔顯示。
+
 **改語言：**`renderer/config.json` 嘅 `language`：`"en"` 係英文（預設），`"zh-HK"` 係中文。
 
 ## 步驟 2：攞 Google Calendar 私人連結

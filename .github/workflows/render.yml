@@ -58,6 +58,7 @@ jobs:
           ICAL_URLS: ${{ secrets.ICAL_URLS }}
           DASH_SECRET: ${{ secrets.DASH_SECRET }}
           MENUS_JSON: fire-menu/dist/menus.json
+          BIN_CALENDAR_ID: ${{ secrets.BIN_CALENDAR_ID }}
         run: |
           if [ -z "$DASH_SECRET" ]; then
             echo "Add a DASH_SECRET repository secret first (see README)." >&2
