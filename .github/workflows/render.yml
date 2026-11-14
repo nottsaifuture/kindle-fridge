@@ -82,6 +82,8 @@ jobs:
           fi
           mkdir -p site
           python renderer/render.py --out "site/$DASH_SECRET.png"
+          # Kindle settings, fetched by the Kindle next to the image.
+          cp kindle/remote.txt "site/$DASH_SECRET.txt"
           # Nothing else is published, so the image can only be found by
           # someone who already knows its secret file name.
           echo '<!doctype html><title>Kindle</title>' > site/index.html

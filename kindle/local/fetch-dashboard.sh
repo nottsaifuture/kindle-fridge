@@ -23,6 +23,25 @@ if [ "$magic" != "PNG" ]; then
 fi
 mv "$TMP" "$1"
 
+# Remote settings: same secret address with .txt instead of .png. Accept it
+# only if every line is a plain export of one of these settings, with digits,
+# spaces and cron characters only; otherwise keep the settings we have.
+SETTINGS_URL="${DASH_URL%.png}.txt"
+REMOTE="$DIR/remote.sh"
+if "$DIR/../xh" -d -q -o "$REMOTE.part" get "$SETTINGS_URL"; then
+  allowed='^export (REFRESH_SCHEDULE|FULL_DISPLAY_REFRESH_RATE|SLEEP_SCREEN_INTERVAL|BATTERY_COL|BATTERY_ROW|BATTERY_WARN_PERCENT)="[0-9 ,*/-]+"$'
+  if grep -q '^export REFRESH_SCHEDULE=' "$REMOTE.part" &&
+     ! grep -vE '^#|^$' "$REMOTE.part" | grep -qvE "$allowed"; then
+    if ! cmp -s "$REMOTE.part" "$REMOTE"; then
+      echo "New remote settings: $(grep -c '^export' "$REMOTE.part") values"
+      mv "$REMOTE.part" "$REMOTE"
+    fi
+  else
+    echo "Remote settings rejected, keeping the current ones"
+  fi
+fi
+rm -f "$REMOTE.part"
+
 # dash.sh puts the new image on screen right after this script returns,
 # so wait a moment and then print the battery level on top of it.
 level=$(gasgauge-info -c)

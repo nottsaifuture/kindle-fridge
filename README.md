@@ -143,6 +143,6 @@ gh secret set BIN_CALENDAR_ID -R nottsaifuture/kindle-fridge
 - **打橫擺**：預設 Kindle 啲掣喺**右邊**。想掣喺左邊，就將 `renderer/config.json` 嘅 `kindle_buttons` 改做 `"left"`，再將 `env.sh` 嘅 `BATTERY_ROW` 改做 `0`。
 - **落雨圖示**：降雨機會 30% 或以上顯示小雨（雨點），60% 或以上（或者預測有雨量）顯示落雨。想改就改 `renderer/config.json` 嘅 `drizzle_icon_percent`、`rain_icon_percent`。
 - **電量**：每次更新都會喺右邊窄位**打側**顯示 `Battery 65%`（Kindle 4 嘅 eips 唔可以轉字方向）；低過 20% 會顯示 `LOW BATTERY`。
-- **電量字出錯位置**：改 `env.sh` 嘅 `BATTERY_COL`、`BATTERY_ROW`。
-- **改更新時間**：改 `env.sh` 嘅 `REFRESH_SCHEDULE`。
+- **改更新時間、電量字位置（唔使 USB）**：改 `kindle/remote.txt`，push 上 GitHub。Kindle 下次醒就會下載新設定，再下一次醒就會照新設定行。如果內容唔啱，Kindle 會唔理佢，繼續用舊設定。改時間嘅話，記得 Cloudflare 定時器（`trigger/worker.js`）都要涵蓋到。
+- **USB 設定（後備）**：`env.sh` 係 Kindle 本身嘅設定；遙距設定冇或者壞咗嘅時候就用佢。
 - **改版面**：改 `renderer/render.py`，push 上 GitHub 就會自動更新。

@@ -1,0 +1,13 @@
+# Kindle settings, published next to the image and picked up by the Kindle on
+# its next wake-up (no USB needed). Only these exports are accepted, with
+# digits, spaces and cron characters; anything else makes the Kindle ignore
+# the whole file and keep its current settings.
+#
+# When to wake (London time, cron format). Wake-ups are at five past; the
+# Cloudflare timer draws from 03:50 to 20:50 (trigger/worker.js), so keep
+# wake-ups inside 04:05-20:05 or change the timer too.
+export REFRESH_SCHEDULE="5 4,5,6,8,10,12,14,16,18,20 * * *"
+export FULL_DISPLAY_REFRESH_RATE="1"
+export BATTERY_COL="1"
+export BATTERY_ROW="39"
+export BATTERY_WARN_PERCENT="20"
