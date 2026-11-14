@@ -11,10 +11,10 @@
 const REPO = "nottsaifuture/kindle-fridge";
 const WORKFLOW = "render.yml";
 
-// Only draw while the Kindle is updating (06:05 to 20:05 London time). The
-// first draw at 05:50 makes sure the 06:05 wake-up shows today's date.
+// Only draw while the Kindle is updating (05:05 to 20:05 London time). The
+// first draw at 04:50 makes sure the 05:05 wake-up shows today's date.
 // Cron runs in UTC, so London summer/winter time is worked out here.
-const FIRST = 5 * 60 + 45; // 05:45
+const FIRST = 4 * 60 + 45; // 04:45
 const LAST = 21 * 60; // up to 21:00
 
 export function londonMinutes(date) {
