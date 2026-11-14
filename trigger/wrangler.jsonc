@@ -6,9 +6,9 @@
   "workers_dev": false,
   "preview_urls": false,
   "triggers": {
-    // Twice an hour, UTC hours 03-21 so both GMT and BST daytimes are
-    // covered; worker.js skips anything outside 04:45-21:00 London time.
+    // Twice an hour, UTC hours 02-21 so both GMT and BST daytimes are
+    // covered; worker.js skips anything outside 03:45-21:00 London time.
     // The :50 run finishes well before the Kindle wakes at five past.
-    "crons": ["20,50 3-21 * * *"]
+    "crons": ["20,50 2-21 * * *"]
   }
 }
