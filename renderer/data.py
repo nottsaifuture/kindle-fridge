@@ -2,6 +2,8 @@
 
 import json
 import re
+import time as time_module
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -15,10 +17,18 @@ OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
 USER_AGENT = "kindle-fridge-dashboard/1.0"
 
 
-def _get(url):
+def _get(url, attempts=4):
+    """Download url, retrying network hiccups (GitHub's runners sometimes
+    time out on the first try)."""
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return response.read()
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return response.read()
+        except (OSError, urllib.error.URLError):
+            if attempt == attempts:
+                raise
+            time_module.sleep(5 * attempt)
 
 
 # ---------------------------------------------------------------- weather
